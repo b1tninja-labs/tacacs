@@ -21,18 +21,18 @@ __all__ = [
 
 
 def decode_header(raw: bytes) -> Header:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 4.1.
 
     Not implemented yet. See the ``header.decode_header()`` row in ROADMAP.md; this stub
     raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("decode_header() is not implemented: RFC 8907")
+    raise NotImplementedError("decode_header() is not implemented: RFC 8907 sec. 4.1")
 
 
 def encode_header(header: Header) -> bytes:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 4.1.
 
     Not implemented yet. See the ``header.encode_header()`` row in ROADMAP.md; this stub
     raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("encode_header() is not implemented: RFC 8907")
+    raise NotImplementedError("encode_header() is not implemented: RFC 8907 sec. 4.1")

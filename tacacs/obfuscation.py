@@ -14,18 +14,20 @@ __all__ = [
 
 
 def obfuscate(body: bytes, key: bytes, session_id: bytes) -> bytes:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 4.5, RFC 9887 sec. 4.
 
     Not implemented yet. See the ``obfuscation.obfuscate()`` row in ROADMAP.md; this stub
     raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("obfuscate() is not implemented: RFC 8907")
+    raise NotImplementedError("obfuscate() is not implemented: RFC 8907 sec. 4.5, RFC 9887 sec. 4")
 
 
 def deobfuscate(body: bytes, key: bytes, session_id: bytes) -> bytes:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 4.5, RFC 9887 sec. 4.
 
     Not implemented yet. See the ``obfuscation.deobfuscate()`` row in ROADMAP.md; this
     stub raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("deobfuscate() is not implemented: RFC 8907")
+    raise NotImplementedError(
+        "deobfuscate() is not implemented: RFC 8907 sec. 4.5, RFC 9887 sec. 4"
+    )

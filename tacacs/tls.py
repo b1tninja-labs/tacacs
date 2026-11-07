@@ -21,9 +21,9 @@ __all__ = [
 
 
 async def connect_tls(server: str, context: ssl.SSLContext) -> Connection:
-    """Pending behaviour defined by RFC 9887.
+    """Pending behaviour defined by RFC 9887 sec. 3.
 
     Not implemented yet. See the ``tls.connect_tls()`` row in ROADMAP.md; this stub
     raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("connect_tls() is not implemented: RFC 9887")
+    raise NotImplementedError("connect_tls() is not implemented: RFC 9887 sec. 3")

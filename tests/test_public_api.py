@@ -15,16 +15,16 @@ import pytest
 import tacacs as package
 
 SURFACE = [
-    ("header", "decode_header", "RFC 8907"),
-    ("header", "encode_header", "RFC 8907"),
-    ("obfuscation", "obfuscate", "RFC 8907"),
-    ("obfuscation", "deobfuscate", "RFC 8907"),
-    ("body", "authenticate_start", "RFC 8907"),
-    ("body", "authorize_command", "RFC 8907"),
-    ("body", "account_command", "RFC 8907"),
+    ("header", "decode_header", "RFC 8907 sec. 4.1"),
+    ("header", "encode_header", "RFC 8907 sec. 4.1"),
+    ("obfuscation", "obfuscate", "RFC 8907 sec. 4.5, RFC 9887 sec. 4"),
+    ("obfuscation", "deobfuscate", "RFC 8907 sec. 4.5, RFC 9887 sec. 4"),
+    ("body", "authenticate_start", "RFC 8907 sec. 5.1"),
+    ("body", "authorize_command", "RFC 8907 sec. 6.1"),
+    ("body", "account_command", "RFC 8907 sec. 7.1"),
     ("client", "login", "RFC 8907"),
     ("server", "serve", "RFC 8907"),
-    ("tls", "connect_tls", "RFC 9887"),
+    ("tls", "connect_tls", "RFC 9887 sec. 3"),
 ]
 
 
@@ -42,7 +42,10 @@ def test_surface_is_documented(module_name, fn, cite):
     module = importlib.import_module(package.__name__ + "." + module_name)
     target = getattr(module, fn)
     assert target.__doc__, fn + " needs a docstring"
-    assert cite in target.__doc__, fn + " must cite the document that defines it"
+    # Docstrings are wrapped, so a long citation can span a line break; compare words, not layout.
+    assert " ".join(cite.split()) in " ".join(target.__doc__.split()), (
+        fn + " must cite the document that defines it"
+    )
 
 
 @pytest.mark.parametrize(("module_name", "fn", "cite"), SURFACE)

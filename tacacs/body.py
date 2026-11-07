@@ -22,27 +22,27 @@ __all__ = [
 
 
 def authenticate_start(user: str, port: str, service: str) -> Packet:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 5.1.
 
     Not implemented yet. See the ``body.authenticate_start()`` row in ROADMAP.md; this
     stub raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("authenticate_start() is not implemented: RFC 8907")
+    raise NotImplementedError("authenticate_start() is not implemented: RFC 8907 sec. 5.1")
 
 
 def authorize_command(user: str, cmd: str, args: dict) -> Packet:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 6.1.
 
     Not implemented yet. See the ``body.authorize_command()`` row in ROADMAP.md; this
     stub raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("authorize_command() is not implemented: RFC 8907")
+    raise NotImplementedError("authorize_command() is not implemented: RFC 8907 sec. 6.1")
 
 
 def account_command(user: str, cmd: str, task_id: int) -> Packet:
-    """Pending behaviour defined by RFC 8907.
+    """Pending behaviour defined by RFC 8907 sec. 7.1.
 
     Not implemented yet. See the ``body.account_command()`` row in ROADMAP.md; this stub
     raises on purpose so nothing downstream mistakes it for working code.
     """
-    raise NotImplementedError("account_command() is not implemented: RFC 8907")
+    raise NotImplementedError("account_command() is not implemented: RFC 8907 sec. 7.1")

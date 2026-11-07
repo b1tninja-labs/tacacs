@@ -11,23 +11,27 @@ behaviour regressed. Reading the code and agreeing with it is not enough. That i
 Legend: `[ok]` implemented and pinned by a named test -- `[part]` partial, with what is
 missing stated -- `[ ]` not implemented -- `[no]` deliberate non-goal.
 
+A Where cell marked `(to be written)` names the test that will pin the row once it exists; no
+such test has been written yet, and the row cannot leave `[ ]` until it has. The Milestone
+column places the row on the ladder in section 2, and `-` means it is not placed yet.
+
 Update the affected row in the same commit that changes the behaviour. A row and its test
 drift apart within one release, and the document becomes useless exactly when it is needed.
 
 ## 1. Obligations
 
-| Obligation | Spec | Status | Where |
-|---|---|---|---|
-| `header.decode_header()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::decode_header` |
-| `header.encode_header()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::encode_header` |
-| `obfuscation.obfuscate()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::obfuscate` |
-| `obfuscation.deobfuscate()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::deobfuscate` |
-| `body.authenticate_start()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::authenticate_start` |
-| `body.authorize_command()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::authorize_command` |
-| `body.account_command()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::account_command` |
-| `client.login()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::login` |
-| `server.serve()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::serve` |
-| `tls.connect_tls()` | RFC 9887 | `[ ]` | `tests/test_obligations.py::connect_tls` |
+| Obligation | Spec | Status | Where | Milestone |
+|---|---|---|---|---|
+| `header.decode_header()` | RFC 8907 sec. 4.1 | `[ ]` | `tests/test_obligations.py::test_decode_header` (to be written) | M1 |
+| `header.encode_header()` | RFC 8907 sec. 4.1 | `[ ]` | `tests/test_obligations.py::test_encode_header` (to be written) | M1 |
+| `obfuscation.obfuscate()` | RFC 8907 sec. 4.5, RFC 9887 sec. 4 | `[ ]` | `tests/test_obligations.py::test_obfuscate` (to be written) | M1 |
+| `obfuscation.deobfuscate()` | RFC 8907 sec. 4.5, RFC 9887 sec. 4 | `[ ]` | `tests/test_obligations.py::test_deobfuscate` (to be written) | M1 |
+| `body.authenticate_start()` | RFC 8907 sec. 5.1 | `[ ]` | `tests/test_obligations.py::test_authenticate_start` (to be written) | M1 |
+| `body.authorize_command()` | RFC 8907 sec. 6.1 | `[ ]` | `tests/test_obligations.py::test_authorize_command` (to be written) | M1 |
+| `body.account_command()` | RFC 8907 sec. 7.1 | `[ ]` | `tests/test_obligations.py::test_account_command` (to be written) | M1 |
+| `client.login()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::test_login` (to be written) | M2 |
+| `server.serve()` | RFC 8907 | `[ ]` | `tests/test_obligations.py::test_serve` (to be written) | M3 |
+| `tls.connect_tls()` | RFC 9887 sec. 3 | `[ ]` | `tests/test_obligations.py::test_connect_tls` (to be written) | M4 |
 
 ## 2. Milestones
 
@@ -44,7 +48,9 @@ the code existing. Coverage in `pyproject.toml` ratchets in the same commit.
 ## 3. Errata watch
 
 - RFC 8907 is Informational: it documents what vendors ship, and the deviations are real. Interoperability tests must be against hardware, not only against this specification.
-- RFC 9887 and RFC 9950 are recent enough that implementations, not errata, are the open question: re-check both before M1.
+- RFC 8907 verified erratum 7754 (Technical), sec. 5.1, 5.3 and 6.1: rem_addr_len is the length of the rem_addr field, not the port field, and in sec. 5.3 user_msg_len is the length of user_msg. Write the length checks against the corrected text.
+- RFC 9887 updates RFC 8907, and its sec. 4 obsoletes the sec. 4.5 obfuscation for TLS: peers MUST NOT obfuscate over TLS, a client MUST set TAC_PLUS_UNENCRYPTED_FLAG on every packet, and a packet without it ends the session.
+- RFC 9887 and RFC 9950 (which obsoletes RFC 9105) have no errata on file as of the 2026-10-29 errata feed (rfclib, read 2026-11-06): implementations, not errata, are the open question. Re-check at the M1 freeze.
 - pytacs exists on PyPI (2025.11.27) but its scope was not established during this survey. Verify it before assuming the field is empty.
 
 ## 4. Deliberate non-goals
@@ -59,6 +65,7 @@ the code existing. Coverage in `pyproject.toml` ratchets in the same commit.
 
 - verify the scope of pytacs before assuming the field is empty
 - which vendor deviations become conformance fixtures
+- M5 names an RFC 9950 configuration surface, but no api row sits on it (the model module has none): add a row, or drop the rung
 
 ## 6. Publication checklist
 
