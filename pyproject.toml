@@ -81,7 +81,7 @@ source = ["tacacs"]
 # coverage for the line that raises. Raise this in the commit that implements a
 # milestone, never in a commit that only adds tests, so the number keeps meaning
 # "this behaviour is exercised" rather than "this file was imported".
-fail_under = 45
+fail_under = 90
 show_missing = true
 exclude_lines = [
   "if __name__ == .__main__.:",
