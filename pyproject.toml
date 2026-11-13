@@ -42,6 +42,8 @@ dev = [
   "hypothesis",
   "ruff",
   "mypy",
+  # tests mint throwaway certificates for the certificate-context checks; nothing else uses it.
+  "cryptography",
   # tools/check_dist.py cannot assert a wheel contains what the docs promise without
   # first being able to build one, so the build dependency belongs in the dev group.
   "build",
