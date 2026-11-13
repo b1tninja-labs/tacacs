@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 __all__ = [
     "PSK_SUPPORTED",
     "TLS_PORT",
+    "PskUnavailableError",
     "TlsPolicyError",
     "check_tls_header",
     "connect_tls",
@@ -35,6 +36,13 @@ TLS_PORT = 300  # RFC 9887 sec. 7: service "tacacss", TCP port 300
 
 class TlsPolicyError(ValueError):
     """A packet that breaks RFC 9887 sec. 4: the unencrypted flag is not set over TLS."""
+
+
+class PskUnavailableError(NotImplementedError):
+    """TLS external PSK is asked for on a Python whose ``ssl`` has no PSK callbacks (before 3.13).
+
+    There is no fallback to certificates: a caller that asked for a PSK is told it cannot have one.
+    """
 
 
 def tls_client_context(
@@ -82,7 +90,10 @@ PSK_SUPPORTED = hasattr(ssl.SSLContext, "set_psk_client_callback")
 """``ssl`` offers external-PSK callbacks from Python 3.13; this project admits 3.12, which does not."""
 
 
-_NO_PSK = "TLS external PSK needs Python 3.13 or newer (ssl PSK callbacks)"
+_NO_PSK = (
+    "TLS external PSK needs Python 3.13 or newer (ssl PSK callbacks); "
+    "this project does not fall back to certificates"
+)
 
 
 def psk_client_context(identity: str, key: bytes) -> ssl.SSLContext:
@@ -97,10 +108,11 @@ def psk_client_context(identity: str, key: bytes) -> ssl.SSLContext:
     and sec. 3.5 para 5 forbids reusing an obfuscation secret as a PSK.
 
     Raises:
-        NotImplementedError: this Python has no ``ssl`` PSK callbacks (before 3.13).
+        PskUnavailableError: this Python has no ``ssl`` PSK callbacks (before 3.13). It is a
+            ``NotImplementedError``, and no certificate context is returned instead.
     """
     if sys.version_info < (3, 13):
-        raise NotImplementedError(_NO_PSK)
+        raise PskUnavailableError(_NO_PSK)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
     context.minimum_version = ssl.TLSVersion.TLSv1_3
     context.check_hostname = False
@@ -116,7 +128,7 @@ def psk_server_context(keys: Mapping[str, bytes]) -> ssl.SSLContext:
     does not say whether the identity or the key was wrong.
     """
     if sys.version_info < (3, 13):
-        raise NotImplementedError(_NO_PSK)
+        raise PskUnavailableError(_NO_PSK)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.minimum_version = ssl.TLSVersion.TLSv1_3
     table = {name: bytes(key) for name, key in keys.items()}
