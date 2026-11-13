@@ -3,7 +3,9 @@
 This is a test-fixture server, not production AAA: it speaks the obfuscated TCP form (RFC 8907
 sec. 4.5) with one secret per client address, follows the session rules of ``session`` and
 answers through a ``Policy``. It refuses the unencrypted flag (sec. 4.1: MUST NOT be used in
-production) unless the operator allows it. TACACS+ over TLS (RFC 9887) is not wired here.
+production) unless the operator allows it. ``serve`` and ``start_server`` take an optional
+``ssl.SSLContext`` for TACACS+ over TLS 1.3 (RFC 9887): the same session rules, no obfuscation and
+no per-client secret, and every packet must carry the unencrypted flag (sec. 4).
 
 ``SecretStore`` carries the sec. 10.5.1 requirements that concern a server: a dedicated secret may
 be defined for each client, secrets never appear in ``repr`` or in the warnings, the server can
@@ -18,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import ssl
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -205,34 +208,58 @@ def _answer(
 
 
 async def handle_connection(
-    reader: asyncio.StreamReader, writer: asyncio.StreamWriter, policy: Policy
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    policy: Policy,
+    *,
+    tls: bool = False,
 ) -> None:
-    """Serve one TCP connection until the session rules or the peer end it."""
+    """Serve one connection until the session rules or the peer end it.
+
+    With ``tls`` the stream is already a TLS 1.3 channel (RFC 9887): bodies are never obfuscated,
+    the client needs no shared secret, and a packet without the unencrypted flag is answered with
+    the ERROR status for its type, flag set, after which the session ends (sec. 4 para 5).
+    """
     peer = writer.get_extra_info("peername")
     client = peer[0] if peer else ""
-    secret = policy.secrets.lookup(client) if client else None
+    secret = None if tls else (policy.secrets.lookup(client) if client else None)
     connection = Connection(client=False)
     states: dict[int, dict] = {}
     try:
-        if secret is None:  # no secret, no conversation (sec. 10.5.1: a secret for each client)
+        if (
+            secret is None and not tls
+        ):  # no secret, no conversation (sec. 10.5.1: a secret for each client)
             return
         while not connection.must_close:
             header = hdr.decode_header(await reader.readexactly(hdr.HEADER_LENGTH))
             hdr.check_header(header, from_client=True)
-            if header.unencrypted and not policy.allow_unencrypted:
+            if header.unencrypted and not policy.allow_unencrypted and not tls:
                 return
             body = await reader.readexactly(header.length)
+            if tls and not header.unencrypted:  # RFC 9887 sec. 4 para 5
+                answer, _ = _error_reply(header.type)
+                reply = Header(
+                    header.major, header.minor, header.type, header.seq_no + 1,
+                    FLAG_UNENCRYPTED, header.session_id, len(answer),
+                )  # fmt: skip
+                writer.write(hdr.encode_header(reply) + answer)
+                await writer.drain()
+                return
             first = connection.packets == 0
             connection.received(header)
             state = states.setdefault(header.session_id, {})
             broken = False
             try:
-                plain = body if header.unencrypted else deobfuscate(body, header, secret)
+                plain = (
+                    body
+                    if header.unencrypted or secret is None
+                    else deobfuscate(body, header, secret)
+                )
                 answer, kind = _answer(policy, client, header, plain, state)
             except (BodyError, ObfuscationError):
                 # A body whose lengths do not add up is what a wrong secret looks like (sec. 4.5).
                 (answer, kind), broken = _error_reply(header.type), True
-            flags = header.flags & FLAG_UNENCRYPTED
+            flags = FLAG_UNENCRYPTED if tls else header.flags & FLAG_UNENCRYPTED
             if first and header.single_connect and policy.allow_single_connect and not broken:
                 flags |= FLAG_SINGLE_CONNECT
             reply = Header(
@@ -240,7 +267,9 @@ async def handle_connection(
                 header.session_id, len(answer),
             )  # fmt: skip
             connection.sent(reply)
-            out = answer if reply.unencrypted else obfuscate(answer, reply, secret)
+            out = (
+                answer if reply.unencrypted or secret is None else obfuscate(answer, reply, secret)
+            )
             writer.write(hdr.encode_header(reply) + out)
             await writer.drain()
             if kind is not ReplyKind.MORE:
@@ -252,23 +281,38 @@ async def handle_connection(
         writer.close()
 
 
-async def start_server(host: str, port: int, policy: Policy) -> asyncio.Server:
-    """Start listening and return the ``asyncio.Server``; ``port`` 0 picks a free one."""
-    for warning in policy.secrets.warnings():
-        log.warning("%s", warning)
+async def start_server(
+    host: str, port: int, policy: Policy, *, ssl_context: ssl.SSLContext | None = None
+) -> asyncio.Server:
+    """Start listening and return the ``asyncio.Server``; ``port`` 0 picks a free one.
+
+    With ``ssl_context`` the listener is TACACS+ over TLS (RFC 9887). The context must be TLS 1.3
+    only (sec. 3.2: earlier versions MUST NOT be used); anything lower is refused here.
+    """
+    if ssl_context is not None and (
+        ssl_context.minimum_version != ssl.TLSVersion.TLSv1_3
+        or ssl_context.maximum_version == ssl.TLSVersion.TLSv1_2
+    ):
+        raise ValueError("a TACACS+ TLS listener needs minimum_version TLS 1.3 (RFC 9887 sec. 3.2)")
+    if ssl_context is None:
+        for warning in policy.secrets.warnings():
+            log.warning("%s", warning)
 
     async def on_connect(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-        await handle_connection(reader, writer, policy)
+        await handle_connection(reader, writer, policy, tls=ssl_context is not None)
 
-    return await asyncio.start_server(on_connect, host, port)
+    return await asyncio.start_server(on_connect, host, port, ssl=ssl_context)
 
 
-async def serve(host: str, port: int, policy: Policy) -> None:
+async def serve(
+    host: str, port: int, policy: Policy, *, ssl_context: ssl.SSLContext | None = None
+) -> None:
     """Run a TACACS+ server on ``host``:``port`` until cancelled (RFC 8907 sec. 4).
 
     Every client needs a secret in ``policy.secrets`` (sec. 4.5, 10.5.1); a connection from an
-    address without one is closed unanswered. Sec. 10.5.1 warnings are logged at start.
+    address without one is closed unanswered. Sec. 10.5.1 warnings are logged at start. With
+    ``ssl_context`` it serves TACACS+ over TLS 1.3 instead (RFC 9887), where no secret is used.
     """
-    server = await start_server(host, port, policy)
+    server = await start_server(host, port, policy, ssl_context=ssl_context)
     async with server:
         await server.serve_forever()

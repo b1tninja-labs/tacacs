@@ -249,3 +249,110 @@ async def test_unencrypted_flag_is_refused_unless_allowed():
             == AuthorStatus.PASS_ADD
         )
         c.writer.close()
+
+
+# --- TACACS+ over TLS 1.3 (RFC 9887) ----------------------------------------------------------
+
+TLS_IDENTITY = "tacacs-client-0001-identity"
+TLS_KEY = bytes(range(32))
+
+
+async def tls_connect(port, key=TLS_KEY):
+    from tacacs.tls import psk_client_context
+
+    context = psk_client_context(TLS_IDENTITY, key)
+    reader, writer = await asyncio.open_connection("127.0.0.1", port, ssl=context)
+    return reader, writer
+
+
+async def tls_send(writer, kind, session, seq, body, *, flags=hdr.FLAG_UNENCRYPTED):
+    header = Header(0xC, 0, kind, seq, flags, session, len(body))
+    writer.write(hdr.encode_header(header) + body)  # never obfuscated over TLS (sec. 4 para 3)
+    await writer.drain()
+
+
+async def tls_receive(reader):
+    header = hdr.decode_header(await asyncio.wait_for(reader.readexactly(hdr.HEADER_LENGTH), 5))
+    return header, await reader.readexactly(header.length)
+
+
+def tls_listener_requirements():
+    from tacacs.tls import PSK_SUPPORTED
+
+    return PSK_SUPPORTED
+
+
+async def test_tls_listener():
+    """RFC 9887: a TLS 1.3 listener needs no client secret, never obfuscates, flag always set."""
+    if not tls_listener_requirements():
+        pytest.skip("the PSK handshake used here needs Python 3.13 (ssl PSK callbacks)")
+    from tacacs.tls import psk_server_context
+
+    # no secret is configured for any client: over TLS none is needed
+    p = StaticPolicy(SecretStore(), users={b"alice": b"wonderland"}, allowed=frozenset({b"show"}))
+    server = await start_server(
+        "127.0.0.1", 0, p, ssl_context=psk_server_context({TLS_IDENTITY: TLS_KEY})
+    )
+    port = server.sockets[0].getsockname()[1]
+    async with server:
+        reader, writer = await tls_connect(port)
+        start = authenticate_start("alice", "tty1", "127.0.0.1")
+        await tls_send(writer, PacketType.AUTHEN, 0xBBBB0001, 1, start.encode())
+        header, body = await tls_receive(reader)
+        assert header.unencrypted  # the reply carries the flag too, and the body is plain text
+        assert AuthenReply.decode(body).status == AuthenStatus.GETPASS
+        await tls_send(
+            writer, PacketType.AUTHEN, 0xBBBB0001, 3, AuthenContinue(b"wonderland").encode()
+        )
+        header, body = await tls_receive(reader)
+        assert header.unencrypted
+        assert AuthenReply.decode(body).status == AuthenStatus.PASS
+        writer.close()
+        # authorization on a fresh connection
+        reader, writer = await tls_connect(port)
+        await tls_send(
+            writer, PacketType.AUTHOR, 2, 1, authorize_command("alice", "show", ["ip"]).encode()
+        )
+        header, body = await tls_receive(reader)
+        assert header.unencrypted
+        assert AuthorReply.decode(body).status == AuthorStatus.PASS_ADD
+        writer.close()
+
+
+async def test_tls_listener_answers_error_and_ends_the_session_without_the_flag():
+    """RFC 9887 sec. 4 para 5: no unencrypted flag over TLS is answered with ERROR, flag set, then closed."""
+    if not tls_listener_requirements():
+        pytest.skip("the PSK handshake used here needs Python 3.13 (ssl PSK callbacks)")
+    from tacacs.tls import psk_server_context
+
+    server = await start_server(
+        "127.0.0.1", 0, StaticPolicy(SecretStore()),
+        ssl_context=psk_server_context({TLS_IDENTITY: TLS_KEY}),
+    )  # fmt: skip
+    port = server.sockets[0].getsockname()[1]
+    async with server:
+        reader, writer = await tls_connect(port)
+        start = authenticate_start("alice", "tty1", "127.0.0.1")
+        await tls_send(writer, PacketType.AUTHEN, 9, 1, start.encode(), flags=0)
+        header, body = await tls_receive(reader)
+        assert header.unencrypted
+        assert AuthenReply.decode(body).status == AuthenStatus.ERROR
+        assert await asyncio.wait_for(reader.read(1), 5) == b""  # the session is terminated
+        writer.close()
+        reader, writer = await tls_connect(port)
+        await tls_send(
+            writer, PacketType.ACCT, 10, 1,
+            account_command("alice", "show", 1, flags=AcctFlag.STOP).encode(), flags=0,
+        )  # fmt: skip
+        header, body = await tls_receive(reader)
+        assert AcctReply.decode(body).status == AcctStatus.ERROR
+        writer.close()
+
+
+async def test_tls_listener_refuses_a_context_below_tls_13():
+    import ssl
+
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.minimum_version = ssl.TLSVersion.TLSv1_2
+    with pytest.raises(ValueError, match=r"TLS 1.3"):
+        await start_server("127.0.0.1", 0, StaticPolicy(SecretStore()), ssl_context=context)
