@@ -67,7 +67,7 @@ rather than merely incomplete.
 - RFC 8907 verified erratum 7754 (Technical), sec. 5.1, 5.3 and 6.1: rem_addr_len is the length of the rem_addr field, not the port field, and in sec. 5.3 user_msg_len is the length of user_msg. Write the length checks against the corrected text.
 - RFC 9887 updates RFC 8907, and its sec. 4 obsoletes the sec. 4.5 obfuscation for TLS: peers MUST NOT obfuscate over TLS, a client MUST set TAC_PLUS_UNENCRYPTED_FLAG on every packet, and a packet without it ends the session.
 - RFC 9887 and RFC 9950 (which obsoletes RFC 9105) have no errata on file as of the 2026-10-29 errata feed (rfclib, read 2026-11-06): implementations, not errata, are the open question. Re-check at the M1 freeze.
-- pytacs exists on PyPI (2025.11.27) but its scope was not established during this survey. Verify it before assuming the field is empty.
+- pytacs is an unrelated bioinformatics package (checked 2026-11-13). The stale incumbent is `tacacs_plus` 2.6 (2018), a client only.
 
 ## Protocol work
 

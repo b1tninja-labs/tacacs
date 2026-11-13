@@ -24,6 +24,7 @@ which is why the table below carries dates instead of adjectives.
 |---|---|---|---|
 | pyrad | 2.6.0 | 2026-10-18 | RADIUS, a different protocol with a different job |
 | tacacs, rfc8907 | - | - | absent from PyPI (2026-11-05) |
+| tacacs_plus | 2.6 | 2018-08-20 | a stale client only (no server, no TLS, no RFC 8907 minor-version-1 work found); PyPI index lists 2.6 as the newest (2026-11-13); missed by the 2026-11-05 survey |
 | vendor SDKs | - | - | none: network gear is a client of the protocol, not a Python library |
 
 What this project intends to add:
@@ -45,7 +46,7 @@ document, which is the honest grain size for a plan. See [docs/rfc-map.md](docs/
 | RFC 8907 | Informational | 2020-09 | the protocol as deployed: header, authentication, authorization, accounting |
 | RFC 9887 | Proposed Standard | 2025-12 | TACACS+ over TLS 1.3, the transport that fixes the plaintext problem |
 | RFC 9950 | Proposed Standard | 2026-03 | YANG data model for configuration and state |
-| RFC 1492 | Informational (Historic) | 1993-07 | the original TACACS, named only so nobody confuses the three |
+| RFC 1492 | Informational (describes the original TACACS, not a standard; rfclib 2026-11-13 shows it current, never marked Historic) | 1993-07 | the original TACACS, named only so nobody confuses the three |
 
 ### Errata watch
 
@@ -53,7 +54,7 @@ document, which is the honest grain size for a plan. See [docs/rfc-map.md](docs/
 - RFC 8907 verified erratum 7754 (Technical), sec. 5.1, 5.3 and 6.1: rem_addr_len is the length of the rem_addr field, not the port field, and in sec. 5.3 user_msg_len is the length of user_msg. Write the length checks against the corrected text.
 - RFC 9887 updates RFC 8907, and its sec. 4 obsoletes the sec. 4.5 obfuscation for TLS: peers MUST NOT obfuscate over TLS, a client MUST set TAC_PLUS_UNENCRYPTED_FLAG on every packet, and a packet without it ends the session.
 - RFC 9887 and RFC 9950 (which obsoletes RFC 9105) have no errata on file as of the 2026-10-29 errata feed (rfclib, read 2026-11-06): implementations, not errata, are the open question. Re-check at the M1 freeze.
-- pytacs exists on PyPI (2025.11.27) but its scope was not established during this survey. Verify it before assuming the field is empty.
+- pytacs (2025.11.27) is Topology-Aware Cell Segmentation, a bioinformatics package, unrelated. The package that is relevant is `tacacs_plus` 2.6 (2018), a stale client; see the table above.
 
 ## Module layout
 
